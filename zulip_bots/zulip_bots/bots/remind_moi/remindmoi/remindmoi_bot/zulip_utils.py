@@ -4,11 +4,10 @@ import zulip
 client = zulip.Client(config_file="../zuliprc")
 
 
-# Send a private message
-request = {
-    "type": "private",
-    "to": "jose@monadical.com",
-    "content": "With mirth and laughter let old wrinkles come."
-}
-result = client.send_message(request)
-print(result)
+def send_private_zulip(email: str, msg: str) -> bool:
+    response = client.send_message({
+        "type": "private",
+        "to": email,
+        "content": msg
+    })
+    return response['result'] == 'success'

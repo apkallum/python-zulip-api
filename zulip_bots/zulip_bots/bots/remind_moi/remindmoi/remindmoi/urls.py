@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from remindmoi_bot.views import add_reminder#, check_reminder, list_reminders
+from remindmoi_bot.views import add_reminder
 
 urlpatterns = [
     path('admin/', admin.site.urls),

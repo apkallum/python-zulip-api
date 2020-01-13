@@ -4,8 +4,15 @@ import requests
 from typing import Any, Dict
 from datetime import timedelta, datetime
 
+USAGE = '''
+A bot that schedules reminders for users.
+- <COMMAND> reminder <int> UNIT <str>
+'''
+
+
 COMMANDS = ['add', 'remove']
-UNITS = ['minute', 'minutes', 'hour', 'hours', 'day', 'days', 'week', 'weeks']
+UNITS = ['minutes', 'hours', 'days', 'weeks']
+SINGULAR_UNITS = ['minute', 'hour', 'day', 'week']
 
 ADD_ENDPOINT = 'http://localhost:8000/add_reminder/'
 
@@ -17,11 +24,7 @@ class RemindMoiHandler(object):
     '''
 
     def usage(self) -> str:
-        return \
-            '''
-        A bot that schedules reminders for users.
-        <COMMAND> reminder <int> UNIT <str>
-            '''
+        return USAGE
 
     def handle_message(self, message: Dict[str, Any], bot_handler: Any) -> None:
         bot_response = get_remind_moi_bot_response(message, bot_handler)
@@ -29,6 +32,9 @@ class RemindMoiHandler(object):
 
 
 def get_remind_moi_bot_response(message: Dict[str, Any], bot_handler: Any) -> str:
+
+    if message['content'].startswith(('help', '?')):
+        return USAGE
 
     if is_valid_content(message['content']):
         try:
@@ -38,24 +44,28 @@ def get_remind_moi_bot_response(message: Dict[str, Any], bot_handler: Any) -> st
             assert response['success']
         except (json.JSONDecodeError, AssertionError):
             return "Something went wrong"
+        except OverflowError:
+            return "What's wrong with you?"
 
         return "Reminder stored."  # TODO: Better message
     else:
         return "Invlaid input. Please check help."
 
 
-def is_valid_content(content: str, commands=COMMANDS, units=UNITS) -> bool:
+def is_valid_content(content: str, commands=COMMANDS, units=UNITS + SINGULAR_UNITS) -> bool:
     """
     Ensure message is in form <COMMAND> reminder <int> UNIT <str>
     """
-    content = content.split(' ', maxsplit=4)  # Ensure the last element is str
-    return all((
-        content[0] in commands,
-        content[1] == 'reminder',
-        type(int(content[2])) == int,
-        content[3] in units,
-        type(content[4]) == str
-    ))
+    try:
+        content = content.split(' ', maxsplit=4)  # Ensure the last element is str
+        assert content[0] in commands
+        assert content[1] == 'reminder'
+        assert type(int(content[2])) == int
+        assert content[3] in units
+        assert type(content[4]) == str
+        return True
+    except (IndexError, AssertionError):
+        return False
 
 
 def parse_content(message: Dict[str, Any]) -> Dict[str, Any]:
@@ -78,6 +88,9 @@ def compute_deadline_timestamp(timestamp_submitted: str, time_value: int, time_u
     Given a submitted stamp and an interval,
     return deadline timestamp.
     """
+    if time_unit in SINGULAR_UNITS:
+        time_unit = f"{time_unit}s"
+
     interval = timedelta(**{time_unit: int(time_value)})  # TODO: Create sanitize function
     datetime_submitted = datetime.fromtimestamp(timestamp_submitted)
     return (datetime_submitted + interval).timestamp()
